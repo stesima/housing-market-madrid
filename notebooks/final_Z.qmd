@@ -1,0 +1,57 @@
+---
+title: Housing Market Analysis in Madrid
+author:
+ - Buchner, Julia
+ - Reichle, Franziska
+ - Sima, Stefano
+institute: University of Lausanne
+date: 12/23/2024
+title-block-banner: "#0095C8" # chosen for the university of lausanne
+toc: true
+toc-location: right
+format: 
+  html:
+    number-sections: true
+    html-math-method: katex
+    self-contained: true
+    code-overflow: wrap
+    code-fold: true
+    code-tools: true
+    include-in-header: # add custom css to make the text in the `</> Code` dropdown black
+      text: |
+        <style type="text/css">
+          .quarto-title-banner a {
+            color: #000000;
+          }
+        </style>
+#  pdf: # use this if you want to render pdfs instead
+#    include-in-header: # wrapping the code also in the pdf (otherwise, it overflows)
+#      text: |
+#        \usepackage{fvextra}
+#        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+#          commandchars=\\\{\},
+#          breaklines, breaknonspaceingroup, breakanywhere
+#        }
+abstract: |
+  This study analyzes the primary factors influencing rental and buying property prices in Madrid's housing market, leveraging a dataset from Kaggle. The analysis involved extensive data cleaning to address missing values, standardize variables, and handle outliers, ensuring robust results. Exploratory data analysis revealed trends based on property type, size, number of rooms, energy certification, year of construction, location, and amenities like lifts and parking. Larger properties in central and northern neighborhoods command higher prices, while flats dominate the market due to their affordability and versatility. Luxury properties, such as penthouses, reflect a niche demand for exclusivity. \n Predictive modeling was conducted using Lasso Regression, Linear Regression, and Random Forest to forecast log-transformed rental and buying prices. Gaussian Mixture Models (GMM) were applied to classify rental prices into "Inexpensive" and "Expensive" categories, improving the prediction accuracy. Random Forest emerged as the best-performing model, achieving the lowest RMSE (0.1783596 for buying prices, 0.1300083 for rental prices) and the highest R² (0.9318762 and 0.9160775, respectively), demonstrating its ability to capture complex relationships in the data. Limitations included the dataset's static nature and assumptions made for handling missing values. The results provide valuable insights for stakeholders, including investors and policymakers, and highlight the importance of location, property size, and amenities in determining housing prices. These findings establish a foundation for further research and predictive modeling in urban real estate markets.
+---
+
+```{r}
+#| label: setup
+#| echo: false
+#| include: false
+#| message: false
+
+# loading all the necessary packages
+source(here::here("src", "setup.R"))
+```
+
+{{< include sections/_introduction.qmd >}}
+
+{{< include sections/_data.qmd >}}
+
+{{< include sections/_eda.qmd >}}
+
+{{< include sections/_analysis.qmd >}}
+
+{{< include sections/_conclusion.qmd >}}
