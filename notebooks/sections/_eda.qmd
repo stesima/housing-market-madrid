@@ -1,0 +1,646 @@
+# Exploratory Data Analysis (EDA)
+
+## Initial Visualizations
+
+### Histograms of Rental and Buying prices
+
+**Rental**: The concentration of rental prices between €800 and €1,200 suggests that there is a significant offer for affordable housing, making this the competitive range for renters. The fewer higher-priced rentals beyond €2,000 may indicate luxury or specialized properties, perhaps in prime locations or with additional amenities. This distribution reflects a standard market pattern where most rental offerings cater to budget-conscious tenants, with a small segment targeting high-income renters. There is also a noticeable spike at €2,200, which may represent a group of high-end properties. This could be due to larger properties, luxury amenities, or prime locations in desirable neighborhoods.
+
+**Buying**: The buying market is accessible for a broad range of buyers, with most properties under €500,000. The long tail extending past €1,000,000 likely includes high-end or exclusive properties. This pattern indicates that while Madrid’s market has an affordable foundation, there’s also room for luxury properties, suggesting a market that accommodates both average-income buyers and high-end investors. Compared to the rent histogram, we see significantly more outliers in the high price segment. This could come from the fact that very expensive properties could be more likely to be sold instead of rented. An example would be that people usually prefer buying houses compared to renting them, as it is seen as an investment.
+
+```{r}
+# ADD UNIFIED COLOUR SCHEME
+# Rent Prices: Blue color scheme
+rent_color = "blue"
+rent_color_light = "lightblue"
+
+# Buy Prices: Green color scheme
+buy_color = "green"
+buy_color_light = "lightgreen"
+
+# general colour if not specifically related to one of the 2 categories
+general_color = "purple"
+general_color_light = "orchid"
+```
+
+::: panel-tabset
+#### Rental Prices
+
+```{r}
+# 1.1 Histogram of rental prices (Interactive)
+
+plotly::plot_ly(
+  data = data_cleaned, x = ~rent_price, type = "histogram",
+  marker = list(color = rent_color)
+) %>%
+  layout(
+    title = "Distribution of Rental Prices",
+    xaxis = list(title = "Rental Price (€)"),
+    yaxis = list(title = "Frequency")
+  )
+```
+
+#### Buying Prices
+
+```{r}
+# 1.2 Histogram of buying prices (Interactive)
+
+plotly::plot_ly(
+  data = data_cleaned, x = ~buy_price, type = "histogram",
+  marker = list(color = buy_color)
+) %>%
+  layout(
+    title = "Distribution of Buying Prices",
+    xaxis = list(title = "Buying Price (€)"),
+    yaxis = list(title = "Frequency")
+  )
+```
+:::
+
+### Energy Certificate Overview
+
+#### Bar Chart
+
+Most properties are either categorized as “in process” or have a “not indicated” energy certificate, meaning that a large portion of the dataset lacks finalized or available energy efficiency information. Among properties with specified ratings, the lower categories have the highest counts. This pattern could reflect the age of properties in the dataset, as older buildings tend to have lower energy efficiency. As Madrid is a city with many storic building that would match thet assumption.
+
+```{r}
+# 2.1 Bar chart for energy_certificate (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned %>% count(energy_certificate),
+  x = ~energy_certificate, y = ~n, type = "bar",
+  marker = list(color = general_color)
+) %>%
+  layout(
+    title = "Count of Energy Certificates",
+    xaxis = list(title = "Energy Certificate"),
+    yaxis = list(title = "Count")
+  )
+```
+
+#### Boxplots Rental and Buying Prices by Energy Certificate
+
+The boxplot of buying and rental prices by energy certificate shows no clear upward trend in property prices with improved energy ratings. While properties with ratings A and C appear to have slightly higher medians, there is still considerable overlap between most categories. Properties in categories like F and G still have a wide range of prices, showing that even less energy-efficient properties can have high prices, possibly due to factors like location or property size. As there is no strong price premium on energy-efficient properties, it could imply that buyers in this market are not placing a high value on energy ratings, or it may indicate that other factors, like location and size, are more influential in determining property prices.
+
+::: panel-tabset
+#### Rental Prices
+
+```{r}
+# 2.2 Boxplot for rental prices by energy certificate (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~energy_certificate, y = ~rent_price, type = "box",
+  marker = list(color = rent_color)
+) %>%
+  layout(
+    title = "Rental Prices by Energy Certificate",
+    xaxis = list(title = "Energy Certificate"),
+    yaxis = list(title = "Rental Price (€)")
+  )
+```
+
+#### Buying Prices
+
+```{r}
+# 2.3 Boxplot for buying prices by energy certificate (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~energy_certificate,
+  y = ~buy_price,
+  type = "box",
+  boxpoints = "outliers",  # Show outliers
+  line = list(color = buy_color),  # Set green color for box lines and whiskers
+  marker = list(color = buy_color),  # Ensure outlier points are green
+  fillcolor = buy_color_light  # Fill boxes with light green
+) %>%
+  layout(
+    title = "Buying Prices by Energy Certificate",
+    xaxis = list(title = "Energy Certificate"),
+    yaxis = list(title = "Buying Price (€)")
+  )
+```
+:::
+
+### House Type
+
+#### Bar Chart
+
+Flats make up the vast majority of properties in the dataset, with very few duplexes and penthouses. This distribution suggests that flats are the predominant housing type available in the market. As Madrid is an urban area, apartments are a common choice due to high population density and limited space.
+
+```{r}
+# 2.4 Bar chart for house_type_id (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned %>% count(house_type_id),
+  x = ~house_type_id, y = ~n, type = "bar",
+  marker = list(color = general_color)
+) %>%
+  layout(
+    title = "Count of House Types",
+    xaxis = list(title = "House Type"),
+    yaxis = list(title = "Count")
+  )
+```
+
+#### Boxplots rental and buy prices by house type
+
+Based on the median, duplexes and penthouses have higher prices, which highlights their role as premium options in the housing market. These types of properties often offer larger spaces, distinctive layouts, superior views, and greater privacy, which are all features that appeal to both buyers and renters prepared to invest more. Flats, on the other hand, cater to a wider audience, covering a range of price points from affordable to mid-range and even some high-end units. This range of pricing for flats reflects a flexible market. Flats act as the base for various buyers and renters, while duplexes and penthouses meet the specific demands of those seeking more exclusive, upscale living spaces.
+
+::: panel-tabset
+#### Rental Prices
+
+```{r}
+# 2.5 Boxplot for rental prices by house type (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~house_type_id, y = ~rent_price, type = "box",
+  marker = list(color = rent_color)
+) %>%
+  layout(
+    title = "Rental Prices by House Type",
+    xaxis = list(title = "House Type"),
+    yaxis = list(title = "Rental Price (€)")
+  )
+```
+
+#### Buying Prices
+
+```{r}
+# 2.6 Boxplot for buying prices by house type (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~house_type_id, y = ~buy_price, type = "box",
+  fillcolor = buy_color_light,  # Fill the boxes with light green
+  line = list(color = buy_color),  # Set the box outlines and whiskers to green
+  marker = list(color = buy_color)  # Ensure outliers are green
+) %>%
+  layout(
+    title = "Buying Prices by House Type",
+    xaxis = list(title = "House Type"),
+    yaxis = list(title = "Buying Price (€)")
+  )
+```
+:::
+
+### Size on Price
+
+The positive correlation between property size and buy and rental price indicates that the size of the property is a key determinant of both rental and purchase prices. Larger properties tend to be more expensive, both to rent and buy, aligning with market expectations. However, for properties above a certain size (around 200 square meters), price variability increases, reflecting the influence of additional factors like neighborhood, and other specific property features. This variability suggests a premium segment in the market for larger, potentially luxury properties, where size alone doesn’t set the price but combines with other value-adding factors. But also properties that probably are in need of renovation can be a cause for the lower priced ones. What is also evident in the scatter plot square meters on rent price is that there is a very distinct upper border for the prices. This could indicate some sort of capped rental prices in the period where the data was pulled. Another potential explanation could be that there is no demand for flats in that price segment, so owners tend to sell instead of rent the properties. Considering the max price border is that distinct, the first explanation appears more likely.
+
+::: panel-tabset
+#### Rental Prices
+
+```{r}
+# 3.1 Scatter plot for sq_mt_built vs. rent_price (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~sq_mt_built, y = ~rent_price,
+  type = "scatter", mode = "markers",
+  marker = list(color = rent_color, opacity = 0.5)  # Add transparency
+) %>%
+  layout(
+    title = "Size vs Rental Prices",
+    xaxis = list(title = "Square Meters Built"),
+    yaxis = list(title = "Rental Price (€)")
+  )
+```
+
+#### Buying Prices
+
+```{r}
+# 3.2 Scatter plot for sq_mt_built vs. buy_price (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~sq_mt_built, y = ~buy_price,
+  type = "scatter", mode = "markers",
+  marker = list(color = buy_color, opacity = 0.5)  # Add transparency
+) %>%
+  layout(
+    title = "Size vs Buying Prices",
+    xaxis = list(title = "Square Meters Built"),
+    yaxis = list(title = "Buying Price (€)")
+  )
+```
+:::
+
+### Age on Price
+
+The relationship between a property's age and its price indicates that both buyers and renters value newer constructions. This could reflect demand for properties with modern amenities, better energy efficiency, and improved construction standards. However, the higher prices for very old buildings (from the 1800s) suggest that there is also a niche market for historic properties, likely due to their architectural charm or premium locations. For late-mid-20th-century properties, the lower prices may indicate a perception of these buildings as lacking in either historic value or modern features, making them less appealing. Those buildings are often classified as post second world war builings, where functionality and fast rebuilt was prioritized over aesthetics. These observations could be helpful for developers or investors targeting renovations or upgrades to increase appeal in older properties, especially mid-century ones that might benefit from modernization.
+
+```{r}
+# 4. Relationship Between Property Age and Prices
+# 4.1 Average rent and buy prices by built year
+price_by_built_year <- data_cleaned %>%
+  group_by(built_year) %>%
+  summarize(
+    avg_rent_price = mean(rent_price, na.rm = TRUE),
+    avg_buy_price = mean(buy_price, na.rm = TRUE)
+  )
+```
+
+::: panel-tabset
+#### Rental Prices
+
+```{r}
+#| warning: false
+#| message: false
+# 4.2 Scatter plot for average rental prices by built year (interactive)
+
+plotly::plot_ly(
+  data = price_by_built_year,
+  x = ~built_year,
+  y = ~avg_rent_price,
+  type = "scatter",
+  mode = "markers",
+  marker = list(color = rent_color, opacity = 0.6, size = 5)  # Reduced point size
+) %>%
+  add_trace(
+    x = ~price_by_built_year$built_year,
+    y = ~predict(loess(avg_rent_price ~ built_year, data = price_by_built_year)),
+    mode = "lines",
+    line = list(color = rent_color, width = 2)  # Smooth loess line with specified color and width
+  ) %>%
+  layout(
+    title = "Average Rental Prices by Year Built",
+    xaxis = list(title = "Year Built"),
+    yaxis = list(title = "Average Rent Price (€)"),
+    showlegend = FALSE  # Hide legend for simplicity
+  )
+```
+
+#### Buying Prices
+
+```{r}
+#| warning: false
+#| message: false
+# 4.3 Scatter plot for average buying prices by built year (interactive)
+
+plotly::plot_ly(
+  data = price_by_built_year,
+  x = ~built_year,
+  y = ~avg_buy_price,
+  type = "scatter",
+  mode = "markers",
+  marker = list(color = buy_color, opacity = 0.6, size = 5)  # Smaller points with transparency
+) %>%
+  add_trace(
+    x = ~price_by_built_year$built_year,
+    y = ~predict(loess(avg_buy_price ~ built_year, data = price_by_built_year)),
+    mode = "lines",
+    line = list(color = buy_color, width = 2)  # Loess smoothing line
+  ) %>%
+  layout(
+    title = "Average Buying Prices by Year Built",
+    xaxis = list(title = "Year Built"),
+    yaxis = list(title = "Average Buy Price (€)"),
+    showlegend = FALSE  # Remove legend for simplicity
+  )
+```
+:::
+
+### Number of rooms and bathrooms on Price
+
+The analysis indicates that the number of rooms and bathrooms significantly impacts both rental and buying prices. Properties with more rooms and bathrooms typically fall into the higher-end segment, appealing to families or buyers with greater purchasing power who value spaciousness and comfort. In the buying market, additional rooms and bathrooms noticeably drive up property values, as buyers appear willing to pay extra for these features. In contrast, the rental market shows a clear price ceiling, especially for larger properties, which suggests there’s a limit to what renters can afford or are willing to pay, regardless of additional space or amenities. This difference highlights that while both size and features add value, rental prices are generally more limited by affordability constraints than buying prices.
+
+::: panel-tabset
+#### Rental Prices
+
+```{r}
+# 5.1 Boxplot for Rent Price by Number of Rooms (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~as.factor(n_rooms),
+  y = ~rent_price,
+  type = "box",
+  fillcolor = rent_color_light,
+  line = list(color = rent_color),
+  marker = list(color = rent_color)
+) %>%
+  layout(
+    title = "Rent Price by Number of Rooms",
+    xaxis = list(title = "Number of Rooms"),
+    yaxis = list(title = "Rent Price (€)")
+  )
+
+# 5.2 Boxplot for Rent Price by Number of Bathrooms (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~as.factor(n_bathrooms),
+  y = ~rent_price,
+  type = "box",
+  fillcolor = rent_color_light,
+  line = list(color = rent_color),
+  marker = list(color = rent_color)
+) %>%
+  layout(
+    title = "Rent Price by Number of Bathrooms",
+    xaxis = list(title = "Number of Bathrooms"),
+    yaxis = list(title = "Rent Price (€)")
+  )
+
+```
+
+#### Buying Prices
+
+```{r}
+# 5.3 Boxplot for Buy Price by Number of Rooms (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~as.factor(n_rooms),
+  y = ~buy_price,
+  type = "box",
+  fillcolor = buy_color_light,
+  line = list(color = buy_color),
+  marker = list(color = buy_color)
+) %>%
+  layout(
+    title = "Buy Price by Number of Rooms",
+    xaxis = list(title = "Number of Rooms"),
+    yaxis = list(title = "Buy Price (€)")
+  )
+
+# 5.4 Boxplot for Buy Price by Number of Bathrooms (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned,
+  x = ~as.factor(n_bathrooms),
+  y = ~buy_price,
+  type = "box",
+  fillcolor = buy_color_light,
+  line = list(color = buy_color),
+  marker = list(color = buy_color)
+) %>%
+  layout(
+    title = "Buy Price by Number of Bathrooms",
+    xaxis = list(title = "Number of Bathrooms"),
+    yaxis = list(title = "Buy Price (€)")
+  )
+```
+:::
+
+### Correlation Analysis
+
+The heatmap illustrates the correlations between various numerical variables in the dataset. The strongest positive correlations are observed between square meters built and number of rooms, as well as between square meters built and buy price, suggesting that larger properties generally have more rooms and higher prices. Similarly, there is a moderate positive correlation between rent price and buy price, which indicates that properties with higher buying prices tend to also have higher rental prices. On the other hand, built year shows weak correlations with other variables, suggesting that the age of the property has a limited direct impact on its price or other features. However, this relationship may be influenced by factors not captured in the dataset, such as the property’s condition, location, or the demand for modern amenities versus historic value.
+
+```{r}
+# 6. Correlation Matrix
+cor_matrix <- cor(data_cleaned[sapply(data_cleaned, is.numeric)], use = "complete.obs")
+cor_melted <- melt(cor_matrix)
+
+# Heatmap of the correlation matrix (interactive)
+
+plotly::plot_ly(
+  data = cor_melted,
+  x = ~Var1,
+  y = ~Var2,
+  z = ~value,
+  type = "heatmap",
+  colorscale = list(
+    list(0, "blue"),   # -1 correlation (blue)
+    list(0.5, "white"), # 0 correlation (white)
+    list(1, "red")     # +1 correlation (red)
+  ),
+  zmin = -1,  # Minimum value for the color scale
+  zmax = 1,   # Maximum value for the color scale
+  colorbar = list(title = "Correlation")
+) %>%
+  layout(
+    title = "Correlation Matrix Heatmap",
+    xaxis = list(title = "", tickangle = 45),  # Rotate x-axis labels for better readability
+    yaxis = list(title = "")
+  )
+```
+
+### Rental and Buying Prices by Neighborhood
+
+The highest rent prices per square meter are concentrated in central Madrid, with darker shades indicating premium areas. This central cluster is likely due to the demand for proximity to amenities, Schools, business centers, and cultural attractions. Beyond the central area, northern neighborhoods also show relatively high rent prices, suggesting they are seen as desirable places to live, possibly due to quality infrastructure, green spaces, and high-end residential areas. In contrast, the southern neighborhoods generally show lower rent prices, implying that they may be more affordable or less in demand compared to the north and center. Similar to rental prices, buying prices per square meter are highest in central and northern neighborhoods, with a clear gradient from high prices in the north to lower prices in the south. The northern part of Madrid likely attracts higher buying prices due to factors such as newer developments, higher-end residential zones, and perhaps perceived prestige.
+
+```{r}
+# 7. Relationship between Neighborhood and Price
+# 7.1 Create a new dataset and calculate average rent and buy price per square meter by neighborhood
+neighborhood_prices <- data_cleaned %>%
+  mutate(
+    rent_price_per_sqm = rent_price / sq_mt_built,
+    buy_price_per_sqm = buy_price / sq_mt_built
+  ) %>%
+  group_by(neighborhood_id) %>%
+  summarise(
+    avg_rent_price_per_sqm = mean(rent_price_per_sqm, na.rm = TRUE),
+    avg_buy_price_per_sqm = mean(buy_price_per_sqm, na.rm = TRUE)
+  )
+
+# 7.2 Download Shapefile of Madrid
+# Adjust the path to include the Barrios folder in your Downloads directory
+madrid_shapefile <- st_read("data/raw/Distritos/Distritos.shp", quiet = TRUE)
+
+
+# 7.3 Update names in neighborhood_prices to match shapefile if needed
+neighborhood_prices <- neighborhood_prices %>%
+  mutate(neighborhood_id = case_when(
+    neighborhood_id == "Moncloa" ~ "Moncloa - Aravaca",
+    neighborhood_id == "Fuencarral" ~ "Fuencarral - El Pardo",
+    TRUE ~ neighborhood_id
+  ))
+
+# 7.4 Merge neighborhood_prices with madrid_shapefile based on neighborhood name
+merged_neighborhood_prices <- madrid_shapefile %>%
+  left_join(neighborhood_prices, by = c("NOMBRE" = "neighborhood_id"))
+
+# Calculate area of each neighborhood polygon for scaling text size and add line breaks after the first blank space in district names
+merged_neighborhood_prices <- merged_neighborhood_prices %>%
+  mutate(area = as.numeric(st_area(geometry)), # Ensure 'area' column for font scaling
+         NOMBRE_wrapped = sub(" ", "\n", NOMBRE)) # Insert line break after the first space
+```
+
+::: panel-tabset
+#### Rental Prices
+
+```{r}
+# 7.5 Heatmap for Average Rent Price per Square Meter by Neighborhood with Black Border and District Names
+ggplot(merged_neighborhood_prices) +
+  geom_sf(aes(fill = avg_rent_price_per_sqm), color = "black", size = 0.1) +
+  geom_text(data = merged_neighborhood_prices,
+            aes(label = NOMBRE_wrapped, geometry = geometry,
+                size = pmin(area / max(area) * 3 + 1.5, 3)), # Scale font size with area, max 3
+            stat = "sf_coordinates", # Center label on polygon
+            color = "black") +
+  scale_fill_gradient(low = "lightyellow", high = "darkred", name = "Avg Rent Price\nper Sq Meter") +
+  scale_size_continuous(range = c(1.5, 3), guide = "none") + # Control size limits
+  labs(title = "Average Rent Price per Square Meter by Neighborhood in Madrid") +
+  theme_minimal()
+```
+
+#### Buying Prices
+
+```{r}
+# 7.6 Heatmap for Average Buy Price per Square Meter by Neighborhood with Black Border and District Names
+ggplot(merged_neighborhood_prices) +
+  geom_sf(aes(fill = avg_buy_price_per_sqm), color = "black", size = 0.1) +
+  geom_text(data = merged_neighborhood_prices,
+            aes(label = NOMBRE_wrapped, geometry = geometry,
+                size = pmin(area / max(area) * 3 + 1.5, 3)), # Scale font size with area, max 3
+            stat = "sf_coordinates", # Center label on polygon
+            color = "black") +
+  scale_fill_gradient(low = "lightyellow", high = "darkred", name = "Avg Buy Price\nper Sq Meter") +
+  scale_size_continuous(range = c(1.5, 3), guide = "none") + # Control size limits
+  labs(title = "Average Buy Price per Square Meter by Neighborhood in Madrid") +
+  theme_minimal()
+```
+:::
+
+### Distribution of Property Types Across Neighborhoods
+
+The graph highlights the prevalence of flats across all neighborhoods in Madrid, reflecting their dominant role in meeting the city's housing needs. Duplexes, while less common, are notable in neighborhoods such as Hortaleza, Moncloa , and Tetuán. This pattern could be linked to varying development trends, with duplexes potentially offering a compromise between space and urban accessibility. Their presence in both central and peripheral areas suggests they cater to diverse buyer preferences, from families to professionals seeking larger living spaces within the city. Penthouses, by contrast, are a niche option and show slightly higher proportions in Barajas and Moncloa. These areas, often less dense and quieter than central neighborhoods, may attract buyers interested in more exclusive housing options with added privacy and better views. However, the relatively low overall proportion of penthouses reflects their luxury positioning and limited availability in the market.
+
+```{r}
+# 8. Distribution of Property Types Across Neighborhoods (interactive)
+
+plotly::plot_ly(
+  data = data_cleaned %>% count(neighborhood_id, house_type_id) %>%
+    group_by(neighborhood_id) %>%
+    mutate(proportion = n / sum(n)),
+  x = ~neighborhood_id,
+  y = ~proportion,
+  color = ~house_type_id,
+  type = "bar"
+) %>%
+  layout(
+    barmode = "stack",
+    title = "Proportion of Property Types Across Neighborhoods",
+    xaxis = list(title = "Neighborhood", tickangle = -45),
+    yaxis = list(title = "Proportion"),
+    legend = list(title = list(text = "House Type"))
+  )
+```
+
+### Energy Efficiency vs. Age of Property
+
+This graph highlights how energy efficiency ratings vary by property age, reflecting changes in construction practices and regulations over time. Older properties, especially those built before 1950, are predominantly rated F or G, showing low energy efficiency due to outdated building techniques. In contrast, buildings constructed after 2000 exhibit higher energy efficiency, with more frequent ratings of A and B, likely driven by modern regulations and advancements in sustainable construction. The significant presence of "not indicated" and "in process" ratings for newer properties suggests gaps in certification or ongoing assessments.
+
+```{r}
+#| warning: false
+#| message: false
+# 9. Relation Between Energy Efficiency and Age of Property
+ggplot(data_cleaned, aes(x = built_year, y = energy_certificate, fill = energy_certificate)) +
+  geom_density_ridges(alpha = 0.7) +
+  labs(title = "Energy Efficiency Rating by Property Age",
+       x = "Year Built",
+       y = "Energy Certificate",
+       fill = "Energy Certificate") +
+  theme_minimal()
+```
+
+### Amenities vs. Prices
+
+The graphs highlight the significant role of amenities in influencing property prices, with lifts showing the largest impact. This reflects their necessity in urban living, especially in multi-story buildings, where accessibility is crucial for families, the elderly, or those with mobility challenges. Properties without lifts, particularly in buildings constructed before lifts became standard, are less appealing, reducing their market value. Parking also drives prices, as secure parking is essential in areas with limited street options, catering to practical needs. Pools and storage rooms add value by addressing lifestyle preferences, appealing to those seeking comfort or extra utility. Terraces, while desirable for outdoor access, show a smaller impact, likely because their value depends on the property's context, being more appealing in dense urban areas where outdoor space is limited. These trends emphasize how practical amenities like lifts and parking significantly influence demand, while luxury features cater to specific buyer or tenant preferences.
+
+```{r}
+# 10. Amenities vs. Prices
+# Pivot data for all amenities
+data_cleaned_long <- data_cleaned %>%
+  select(rent_price, buy_price, starts_with("has_")) %>%
+  pivot_longer(cols = starts_with("has_"), names_to = "amenity", values_to = "presence")
+```
+
+::: panel-tabset
+#### Rental Prices
+
+```{r}
+# Boxplot for rent price
+ggplot(data_cleaned_long, aes(x = as.factor(presence), y = rent_price, fill = as.factor(presence))) +
+  geom_boxplot(alpha = 0.7) +
+  facet_wrap(~ amenity, scales = "free_y") +
+  labs(title = "Impact of Amenities on Rent Price",
+       x = "Amenity Presence",
+       y = "Rent Price (€)",
+       fill = "Presence") +
+  theme_minimal()
+```
+
+#### Buying Prices
+
+```{r}
+# Boxplot for buy price
+ggplot(data_cleaned_long, aes(x = as.factor(presence), y = buy_price, fill = as.factor(presence))) +
+  geom_boxplot(alpha = 0.7) +
+  facet_wrap(~ amenity, scales = "free_y") +
+  labs(title = "Impact of Amenities on Buy Price",
+       x = "Amenity Presence",
+       y = "Buy Price (€)",
+       fill = "Presence") +
+  theme_minimal()
+```
+:::
+
+### Amenity Across Property Types
+
+The graph shows how amenities are distributed across property types, reflecting their different market positioning. Penthouses and duplexes typically offer more amenities, such as terraces and parking, appealing to buyers seeking space and luxury. Flats prioritize essential features like lifts, which are crucial for accessibility in urban areas, but have fewer lifestyle-focused amenities like pools or storage rooms, likely due to space and affordability constraints. Penthouses, associated with exclusivity, frequently include terraces and parking, catering to high-end preferences.
+
+```{r}
+# 11. Amenity Presence Across Property Types
+# Count of amenities by property type (interactive)
+amenities_property_type <- data_cleaned %>%
+  pivot_longer(cols = starts_with("has_"), names_to = "amenity", values_to = "presence") %>%
+  group_by(house_type_id, amenity) %>%
+  summarize(presence_rate = mean(presence, na.rm = TRUE), .groups = "drop")
+
+
+plotly::plot_ly(
+  data = amenities_property_type,
+  x = ~house_type_id,
+  y = ~presence_rate,
+  color = ~amenity,
+  type = "bar",
+  text = ~paste("Amenity:", amenity, "<br>Property Type:", house_type_id, "<br>Presence Rate:", round(presence_rate, 2)),
+  hoverinfo = "text"
+) %>%
+  layout(
+    title = "Amenity Distribution Across Property Types",
+    xaxis = list(title = "Property Type", tickangle = -45),
+    yaxis = list(title = "Amenity Presence Rate"),
+    legend = list(title = list(text = "Amenity"))
+  )
+```
+
+## Summary Statistics
+
+The summary statistics of the cleaned dataset reveal a diverse range of properties in Madrid. The mean property size is 106.4 m², but the median is 68.6 m², indicating a predominance of smaller properties. Most properties have around 2 rooms, and rental prices have a median of €1,223, while buying prices are higher, with a median of €315,000. The highest buying price exceeds €1.3 million, highlighting luxury properties in the market.
+
+This diversity has already emerged when visualizing the data: Flats are the most common property type, followed by penthouses and duplexes, with the Centro neighborhood having the highest number of listings. Most properties have an energy certificate marked as "in process" or "not indicated," and a notable portion in the "E" energy efficiency category. A significant share of properties offers amenities like air conditioning, terraces, and balconies, though many lack parking or accessibility.
+
+With a mean built year of 1968, many properties are older and may require renewal. This reflects the presence of older buildings in the market. Overall, the dataset includes a wide variety of property types, sizes, and conditions, reflecting the diverse housing market in Madrid.
+
+```{r}
+#| label: summary-statistics
+
+# 7. Summary statistics of the cleaned data
+summary(data_cleaned)
+```
+
+## Key Findings or Patterns
+
+**Property Size:** Both rental and buying prices generally increase with property size, as expected, with larger properties catering to a premium market. For properties exceeding 200 square meters, price variability increases, likely influenced by factors like location or specific property features.
+
+**Rooms and Bathrooms:** The number of rooms and bathrooms is a strong determinant of both rental and buying prices, particularly in the buying market, where these features appeal to families and high-end buyers. In the rental market, prices for larger properties appear to hit a ceiling (€2,500), suggesting affordability constraints.
+
+**Energy Efficiency:** Energy certificates show limited correlation with property prices, indicating that energy efficiency may not yet be a major pricing factor in Madrid. Older properties, especially pre-1950, often have lower efficiency ratings (F or G), while newer properties built after 2000 tend to have higher ratings (A or B), reflecting modern construction standards. Many properties still lack finalized energy certifications, particularly newer ones marked as "in process."
+
+**Neighborhood Influence:** Central and northern neighborhoods command the highest average buy and rent prices, likely due to proximity to amenities, prestige, and infrastructure quality. Southern neighborhoods are more affordable, indicating less demand or lower economic development in these areas.
+
+**Property Types Across Neighborhoods:** Flats dominate the housing market across all neighborhoods, offering a practical and affordable option for urban living. Duplexes and penthouses are less common but are concentrated in neighborhoods like Hortaleza and Moncloa, reflecting a localized demand for more spacious or luxury properties.
+
+**Amenities and Prices:** Practical amenities like lifts and parking have a significant impact on property prices, particularly in dense urban areas where they are highly valued. Luxury features like pools and terraces also increase prices but cater to a smaller segment of buyers or renters with specific preferences. The distinct price premium associated with lifts underscores their necessity in multi-story buildings.
+
+**Amenities by Property Type:** Flats focus on essential features like lifts, while penthouses and duplexes are more likely to include high-end amenities such as terraces and parking, aligning with their luxury positioning. This distribution highlights a flexible housing market that caters to both practical and premium demands.
+
+**Age and Price:** Both very old properties (e.g., pre-1900) and newer constructions tend to command higher prices. Older properties likely appeal to buyers for their historic charm and prime locations, while newer ones attract demand for modern features and energy efficiency. Properties from the mid-20th century tend to be less valued, possibly due to their age and lack of modernization, presenting opportunities for redevelopment or upgrades.
+
+This analysis reflects the complexity and diversity of Madrid’s housing market, shaped by a combination of structural features, location, and buyer preferences. These insights provide a solid foundation for further predictive modeling and targeted recommendations.

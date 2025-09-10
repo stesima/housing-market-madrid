@@ -1,0 +1,307 @@
+# Data
+
+## Sources
+
+The dataset was sourced from [Kaggle](https://www.kaggle.com/datasets/mirbektoktogaraev/madrid-real-estate-market), a popular platform for data science competitions and sharing datasets. The specific dataset used is titled "Madrid Real Estate Market," curated by Mirbek Toktogaraev. It contains detailed information about the real estate market in Madrid, including property characteristics, pricing, and location data. The dataset consists of listings from popular real estate portals of Madrid.
+
+## Description
+
+The dataset consists of 21,742 rows and 58 columns, with a mix of numeric and categorical variables. The dataset is not regularly updated, meaning the analysis reflects conditions at the time of the data's collection.
+
+The key features can be grouped into several categories:
+
+::: panel-tabset
+### Property Characteristics
+
+▫ sq_mt_built: Total built area (in square meters) of the property.\
+▫ n_rooms: Number of rooms in the property.\
+▫ n_bathrooms: Number of bathrooms in the property.\
+▫ floor: The floor number of the property.\
+▫ house_type_id: Type of the property (e.g., apartment, house).\
+▫ built_year: The year in which the property was constructed.
+
+### Location Information
+
+▫ neighborhood_id: The neighborhood in which the property is located.\
+▫ is_exact_address_hidden: A boolean indicating if the exact address is available or not.\
+Note: The columns for latitude and longitude (geographical coordinates) are present but completely null, so they cannot be used for geospatial analysis without additional data sources.
+
+### Price Information
+
+▫ rent_price: The rental price of the property (in euros).\
+▫ buy_price: The purchase price of the property (in euros).\
+▫ buy_price_by_area: Price per square meter for properties listed for sale (in euros/m²).
+
+### Amenities/Other Features
+
+▫ has_parking: A boolean indicating whether the property has parking facilities.\
+▫ energy_certificate: The energy efficiency rating of the property.
+:::
+
+## Wrangling/Cleaning
+
+To prepare the dataset for analysis, we implemented a comprehensive cleaning process to ensure data consistency and usability. This involved removing redundant and irrelevant columns, handling missing and erroneous values, standardizing categorical and numerical variables, and addressing outliers. Key steps included dropping columns with minimal analytical value, filling binary feature columns with logical FALSE values for missing data, converting text-based floor levels to numeric, and standardizing neighborhood names and house types. Additionally, we addressed outliers through visual inspection and corrected implausible values, such as an erroneous built_year.
+
+More precisely, the steps included:
+
+1.  Removing Redundant and Irrelevant Columns:
+
+    -   Dropped several columns not useful for analysis, including title, subtitle, raw_address, operation (contained only "sale"), and others with minimal impact on the analysis.
+
+2.  Handling Missing Values:
+
+    -   Columns with all NA values were removed.
+    -   Filtered out rows with missing values in critical columns, such as built_year and floor.
+    -   Replaced NA values with FALSE in specific binary variables, including has_ac, has_garden, has_pool, has_terrace, has_balcony, has_storage_room, and is_accessible.\
+        This decision was based on the observation that only TRUE values were present in these columns, likely indicating that the platform allowed users to specify features they had (by selecting TRUE) but not features they lacked (by selecting FALSE). Therefore, any NA values were logically assumed to mean the absence of the feature.
+
+3.  Handling negative values in rent_price
+
+    -   Columns with all negative values were removed as negative rent_prices do not make sense.
+
+4.  Remove specific columns that are redundant or not useful.
+
+5.  Remove observations where built_year or floor is NA.
+
+6.  Fill in the NA values for certain columns with FALSE, as mentioned in point 2.
+
+7.  Floor Level Conversion:
+
+    -   Cleaned the floor variable by converting text-based descriptions to numeric values:
+        -   Converted "Bajo" (ground floor) to 0, "Sótano" (basement) to -1, "Semi-sótano" (semi-basement) to -0.5, and "Entreplanta" (mezzanine) to 0.5.
+    -   Converted the floor column to numeric for analysis.
+
+8.  Modify values in house_type_id:
+
+    -   Converted columns neighborhood_id, house_type_id, and energy_certificate to factors.
+    -   Standardized house_type_id values as follows:
+        -   HouseType 1: Pisos renamed to Flat
+        -   HouseType 4: Dúplex renamed to Duplex
+        -   HouseType 5: Áticos renamed to Penthouse
+        -   HouseType 2: Casa o chalet (not present in final cleaned data)
+
+9.  Modify values in energy_certificate:
+
+    -   Modified values in energy_certificate to standardize the categories:
+        -   Added categories for energy ratings: A, B, C, D, E, F, G
+        -   Renamed “en trámite” to “in process”
+        -   Renamed “no indicado” to “not indicated”
+        -   Renamed “inmueble exento” to “exempt”
+
+10. Verify which rows still have NA values after the above cleaning steps and remove those.
+
+11. Cleaning Neighborhood Information:
+
+    -   Standardized neighborhood names in neighborhood_id.
+
+12. Cleaning Neighborhood Information:
+
+    -   Removing numerical identifiers and irrelevant text to make data handling easier.
+
+13. Outlier Detection and Adjustment:
+
+    -   Created boxplots to visually inspect outliers in numeric variables, leading to corrections like changing a built_year value from 8170 to 1870.
+
+    -   Removed observations with negative values in rent_price, as these were likely erroneous.
+
+14. Remove has_garden column:
+
+    After all the cleaning steps, we realized that there are only FALSE values in the has_garden column and all the TRUE values have been deleted due to other cleaning steps. This is why we decided to remove the has_garden column.
+
+```{r, fig.width = 6, fig.height = 3}
+#| label: data-cleaning
+#| warning: false
+#| message: false
+
+# Load dataset and remove the first row because it contains a header
+houses_Madrid <- suppressMessages(
+  read_excel(here::here("data/processed/houses_Madrid.xlsx"), skip = 1)
+)
+data <- houses_Madrid
+
+# Convert specific columns to factors (categorical variables)
+data <- data %>%
+  mutate(
+    neighborhood_id = as.factor(neighborhood_id),
+    house_type_id = as.factor(house_type_id),
+    energy_certificate = as.factor(energy_certificate)
+  )
+
+# A. Introducing a cleaned dataset with the following changes
+
+# 1. Remove the first column because it is redundant
+data_cleaned <- data[, -1]
+
+# 2. Remove columns that have all NA values except the header
+data_cleaned <- data_cleaned[, colSums(!is.na(data_cleaned)) > 0]
+
+# 3. Remove observations with a negative rent_price
+data_cleaned <- data_cleaned[data_cleaned$rent_price >= 0, ]
+
+# 4. Remove specific columns that are redundant or not useful
+data_cleaned <- data_cleaned %>%
+  select(
+    -title,                # Covered by neighborhood_id
+    -subtitle,             # Covered by neighborhood_id
+    -raw_address,          # Covered by neighborhood_id
+    -street_name,          # Covered by neighborhood_id
+    -street_number,        # Covered by neighborhood_id
+    -n_floors,             # Less important than floors data
+    -is_floor_under,       # Redundant with floors data
+    -sq_mt_useful,         # Less important than sq_mt_built
+    -sq_mt_allotment,      # Less important than sq_mt_built
+    -is_rent_price_known,  # All values are FALSE
+    -is_buy_price_known,   # All values are TRUE
+    -operation,            # All values are "sale"
+    -buy_price_by_area,    # rent_price_by_area is not known, removal to facilitate comparison
+    -is_new_development,   # Redundant with built_year
+    -has_central_heating,  # Less important
+    -has_individual_heating, # Less important
+    -has_fitted_wardrobes, # Less important
+    -is_exterior,          # Less important
+    -has_green_zones,      # Less important
+    -is_parking_included_in_price, # Less important
+    -parking_price,        # Less important
+    -is_orientation_north, # Less important
+    -is_orientation_west,  # Less important
+    -is_orientation_south, # Less important
+    -is_orientation_east   # Less important
+  )
+
+# 5. Remove observations where 'built_year' or 'floor' is NA
+data_cleaned <- data_cleaned %>%
+  filter(!is.na(built_year), !is.na(floor))
+
+# 6. Fill in NA values for certain columns with "FALSE"
+data_cleaned <- data_cleaned %>%
+  mutate(
+    has_ac = ifelse(is.na(has_ac), FALSE, has_ac),
+    has_garden = ifelse(is.na(has_garden), FALSE, has_garden),
+    has_pool = ifelse(is.na(has_pool), FALSE, has_pool),
+    has_terrace = ifelse(is.na(has_terrace), FALSE, has_terrace),
+    has_balcony = ifelse(is.na(has_balcony), FALSE, has_balcony),
+    has_storage_room = ifelse(is.na(has_storage_room), FALSE, has_storage_room),
+    is_accessible = ifelse(is.na(is_accessible), FALSE, is_accessible)
+  )
+
+# 7. In the column floor:
+# 7.1 "bajo" is used to say groundfloor, we are changing that to simply zero
+# 7.2 "Semi-sótano", "Semi-sótano exterior", "Semi-sótano interior" is used to say semi-basement, we are changing that to -0.5
+# 7.3 "Sótano", "Sótano exterior", "Sótano interior" is used to say basement, we are changing that to -1
+# 7.4 "Entreplanta", "Entreplanta exterior", "Entreplanta interior" is used to say mezzanine, we are changing that to 0.5
+
+data_cleaned <- data_cleaned %>%
+  mutate(
+    floor = case_when(
+      floor == "Bajo" ~ "0",
+      floor %in% c("Semi-sótano", "Semi-sótano exterior", "Semi-sótano interior") ~ "-0.5",
+      floor %in% c("Sótano", "Sótano exterior", "Sótano interior") ~ "-1",
+      floor %in% c("Entreplanta", "Entreplanta exterior", "Entreplanta interior") ~ "0.5",
+      TRUE ~ floor
+    )
+  ) %>%
+  mutate(floor = as.numeric(floor))  # Convert to numeric for analysis
+
+# 8. Rename values in house_type_id column
+data_cleaned <- data_cleaned %>%
+  mutate(
+    house_type_id = trimws(house_type_id),  # Remove any leading/trailing whitespace
+    house_type_id = case_when(
+      house_type_id == "HouseType 1: Pisos" ~ "Flat",
+      house_type_id == "HouseType 2: Casa o chalet" ~ "House",
+      house_type_id == "HouseType 4: Dúplex" ~ "Duplex",
+      house_type_id == "HouseType 5: Áticos" ~ "Penthouse",
+      TRUE ~ house_type_id  # Keep other values unchanged
+    )
+  ) %>%
+  filter(!is.na(house_type_id))  # Remove rows with NA in 'house_type_id'
+
+# 9. Modify values in the 'energy_certificate' column
+data_cleaned <- data_cleaned %>%
+  mutate(energy_certificate = case_when(
+    energy_certificate == "en trámite" ~ "in process",
+    energy_certificate == "no indicado" ~ "not indicated",
+    energy_certificate == "inmueble exento" ~ "exempt",
+    TRUE ~ energy_certificate  # Keep original values for other cases
+  ))
+
+# 10. Check which rows still have NA values and remove those
+data_cleaned <- data_cleaned %>%
+  filter(!is.na(sq_mt_built), !is.na(n_bathrooms), !is.na(has_lift))
+
+# 11. Clean the neighborhood_id column to keep only district names
+data_cleaned <- data_cleaned %>%
+  mutate(
+    # Extract only the district name from neighborhood_id by removing everything before "District X: "
+    neighborhood_id = str_replace(neighborhood_id, ".*District \\d+: ", ""),
+
+# 12. Remove any leading or trailing whitespace in district names
+    neighborhood_id = trimws(neighborhood_id)
+  )
+
+# 13. Handling outliers
+# 13.1 Identify outliers using boxplots
+numeric_columns <- sapply(data_cleaned, is.numeric)  # Identify numeric columns
+numeric_data <- data_cleaned[, numeric_columns]  # Subset numeric data
+
+# 13.2 Create boxplots for each numeric variable and display them two by two
+plot_list <- list()  # List to store plots
+
+for (column in colnames(numeric_data)) {
+  plot <- ggplot(data_cleaned, aes_string(x = "factor(1)", y = column)) +
+    geom_boxplot() +
+    labs(title = paste("Boxplot of", column), y = column) +
+    theme_minimal() +
+    theme(axis.title.x = element_blank())
+  
+  plot_list <- append(plot_list, list(plot))
+}
+```
+
+Initial boxplot visualizations were used to **identify potential outliers and anomalies in the data** (as mentioned in point 13). Additional visualizations and in-depth analyses will be conducted as part of the Exploratory Data Analysis (EDA) chapter.
+
+```{r, fig.width = 6, fig.height = 3}
+# Display the boxplots two by two
+for (i in seq(1, length(plot_list), by = 2)) {
+  if (i + 1 <= length(plot_list)) {
+    print(plot_list[[i]] + plot_list[[i + 1]])  # Print two plots side by side
+  } else {
+    print(plot_list[[i]])  # If odd number of plots, print the last one by itself
+  }
+}
+
+# 13.3 Check the data for anomalies and replace the incorrect value of 8170 with 1870
+data_cleaned$built_year[data_cleaned$built_year == 8170] <- 1870
+
+# 14. Removing the has_garden column from the data_cleaned dataset
+data_cleaned <- data_cleaned %>%
+  select(-has_garden)
+
+```
+
+::: panel-tabset
+#### Summary before the cleaning
+
+```{r}
+summary(data)
+```
+
+#### Summary after the cleaning
+
+```{r}
+summary(data_cleaned)
+```
+:::
+
+## Spotting Mistakes and Missing Data
+
+During the cleaning process, the following issues with mistakes and missing data were identified and addressed:
+
+-   Missing Values: Columns with high NA counts were removed or had missing values filled with FALSE where appropriate. For example, missing data in has_ac, has_garden, and has_pool was assumed to indicate the absence of these features.
+-   Wrong Value: We corrected a wrong value in built_year (from 8170 to 1870), as this seems to be twisted numbers.
+-   Observations with negative values in rent_price were removed, as this did not make sense.
+
+## Listing Anomalies and Outliers
+
+-   Outlier Identification: Used boxplots for visual inspection. If "\>1.5xIQR", then considered outlier
+-   Handling Strategy: Retained legitimate outliers (e.g., high-end properties in prime locations) but removed invalid values (e.g., negative rent prices). Outliers were kept because housing properties can vary based e.g on luxuriousness, and other factors that are not included in our variables. Those high-value properties or very large properties may be unique but still real. In the Madrid housing market, this might include luxury penthouses, historic homes, or properties in prime neighborhoods. By keeping the outliers, we preserves data integrity and can also model for high end or unique properties.

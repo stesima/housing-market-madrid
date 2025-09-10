@@ -1,0 +1,23 @@
+# Conclusion
+
+## Summary
+
+We conducted an extensive analysis of the Madrid housing dataset, including data cleaning and an examination of key factors such as property type, size, number of rooms, energy certificate, year of construction, and location. Visualizations revealed trends in property size, room count, neighborhood influence, and amenities like lifts and parking, all of which significantly impact prices. The core insights show that location has the highest impact on both buying and rental prices, followed by the property having amenities such as a lift and a pool. Other features such as for example the size and type of housing also have a significant influence on the price. This answers our research questions that not only the primary more obvious factors like the size, but also the less intuitive aspects have a significant impact that cannot be ignored. Specifically looking at the trends of location, the analysis shows us that central and northern districts positively influence the prices, while southern areas decrease prices. Predictive modeling identified Random Forest as the most effective tool for capturing price determinants and forecasting trends. These findings provide valuable insights into Madrid’s housing market and support data-driven decision-making for buyers, renters, and investors.
+
+## Final Thoughts
+
+A key challenge in this project has been managing missing values and potential biases within the dataset. For certain variables, particularly boolean ones, we made assumptions to handle missing values. Additionally, the dataset’s static nature, representing a single snapshot in time, limits our ability to capture seasonal trends and evolving market dynamics in Madrid.
+
+While we cannot expand beyond the dataset’s scope, we can highlight specific limitations, such as the lack of time-series data or additional contextual information, that affect our ability to fully capture market trends. These points will help guide recommendations for enhancing similar analyses in the future and achieving a more complete view of Madrid’s housing market.
+
+## References
+
+-   <https://www.kaggle.com/datasets/mirbektoktogaraev/madrid-real-estate-market> 
+
+-   Baldominos, A., Blanco, I., Moreno, A. J., Iturrarte, R., Bernárdez, Ó., & Afonso, C. (2018). Identifying Real Estate Opportunities using Machine Learning. *arXiv preprint arXiv:1809.04933.* <https://arxiv.org/abs/1809.04933>
+
+-   Jafari, A., & Akhavian, R. (2019). Driving forces for the US residential housing price: a predictive analysis. *Built Environment Project and Asset Management, 9*(4), 515–529. <https://doi.org/10.1108/bepam-07-2018-0100>
+
+-   Milcheva, S., & Zhu, B. (2020). Machine Learning Applications in House Price Prediction: A Comprehensive Review. *Journal of Real Estate Finance and Economics, 61*(3), 528-545. <https://link.springer.com/article/10.1007/s10614-022-10298-8>
+
+-   Kenyon, G. E., Arribas-Bel, D., & Robinson, C. (2024). Extracting Features from Satellite Imagery to Understand the Size and Scale of Housing Sub-Markets in Madrid. *Land, 13*(5), 575. <https://www.mdpi.com/2073-445X/13/5/575>

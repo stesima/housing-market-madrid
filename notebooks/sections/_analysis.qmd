@@ -1,0 +1,491 @@
+# Analysis
+
+To evaluate the predictive performance of different models for property price data, a structured analysis was conducted. Property buy and rent prices in the dataset were log-transformed (`buy_price_log` and `rent_price_log`) to address skewness and improve model performance. Three models were implemented: Lasso Regression, Linear Regression, and Random Forest.
+
+## Data Preparation and Splitting
+
+The dataset was prepared by transforming key variables and incorporating additional features, such as clustering results from Gaussian Mixture Models (GMM). GMM was applied to the log-transformed rental prices (`rent_price_log`) to classify properties into two categories: "Inexpensive" and "Expensive." These categories were used as an additional predictor for rent price models. The dataset was then split into training and testing sets using a 90-10 split. The training set (90% of the data) was used to train the models, while the testing set (10%) was reserved for evaluation. This approach ensured robust performance metrics and minimized overfitting.
+
+## Model Evaluation
+
+::: panel-tabset
+### Buying Prices
+
+Three models (Lasso Regression, Linear Regression, and Random Forest) were trained to predict `buy_price_log`. Their performance was evaluated using the Root Mean Squared Error (RMSE) and R-squared (R²) values. The results are as follows:
+
+| Model             | RMSE      | R²        |
+|-------------------|-----------|-----------|
+| Random Forest     | 0.1783596 | 0.9318762 |
+| Linear Regression | 0.2244886 | 0.8946683 |
+| Lasso Regression  | 0.2244320 | N/A       |
+
+
+The Random Forest model achieved the lowest RMSE, demonstrating its ability to capture complex, non-linear relationships in the data. Linear Regression and Lasso Regression performed similarly but less effectively than Random Forest.
+
+### Rental Prices
+
+The models were also evaluated for predicting `rent_price_log`. The GMM clustering results ("Inexpensive" and "Expensive") were included as a feature in these models. The performance metrics were:
+
+| Model             | RMSE      | R²        |
+|-------------------|-----------|-----------|
+| Random Forest     | 0.1300083 | 0.9160775 |
+| Linear Regression | 0.1783225 | 0.7696447 |
+| Lasso Regression  | 0.1782763 | N/A       |
+
+
+Random Forest significantly outperformed the other models, with the lowest RMSE and the highest R². The inclusion of GMM clustering likely enhanced the model's ability to distinguish patterns, further improving its accuracy.
+:::
+
+```{r}
+#| include: false
+#| label: Transformations
+# GMM of rental prices
+
+## Log-transform the rental prices to handle skewness
+data_cleaned$rent_price_log <- log(data_cleaned$rent_price)
+
+## Fit a Gaussian Mixture Model with 2 components
+gmm_model <- Mclust(data_cleaned$rent_price_log, G = 2)
+
+## Summarize the GMM
+summary(gmm_model)
+
+## Access the means (represent inexpensive and expensive properties)
+gmm_means <- gmm_model$parameters$mean
+print(gmm_means)
+
+## Access the posterior probabilities for each data point
+gmm_probabilities <- gmm_model$z
+head(gmm_probabilities)
+
+## Assign each property to a cluster based on maximum probability
+data_cleaned$gmm_cluster <- apply(gmm_probabilities, 1, which.max)
+
+## Convert cluster labels to descriptive names
+data_cleaned$price_category <- ifelse(data_cleaned$gmm_cluster == 1, "Inexpensive", "Expensive")
+
+## Plot the density with cluster assignments
+ggplot(data_cleaned, aes(x = rent_price_log, fill = price_category)) +
+  geom_density(alpha = 0.6) +
+  labs(title = "GMM Clustering of Rental Prices",
+       x = "Log Rental Price",
+       fill = "Price Category") +
+  theme_minimal()
+
+# Log-transform the rental prices to handle skewness
+data_cleaned$buy_price_log <- log(data_cleaned$buy_price)
+
+## Interactive histogram of log-transformed buying prices
+plotly::plot_ly(
+  data = data_cleaned,  # Use the dataset with log-transformed prices
+  x = ~buy_price_log,       # Refer to the precomputed log column
+  type = "histogram",
+  nbinsx = 30,              # Adjust bin size
+  marker = list(
+    color = buy_color,      # Use the predefined buy color
+    line = list(color = "black", width = 1)  # Add black border to bins
+  )
+) %>%
+  layout(
+    title = "Log-Transformed Distribution of Buying Prices",
+    xaxis = list(title = "Log(Buying Price) (log(€))"),
+    yaxis = list(title = "Frequency"),
+    bargap = 0  # Adjust spacing between bars
+  )
+```
+
+```{r}
+#| label: Analysis
+#| warning: false
+#| message: false
+
+# 1. Create two separate datasets for rent and buy predictions
+
+# Dataset for Rent Prediction
+data_cleaned_analysis_rent <- data_cleaned %>%
+  mutate(
+    is_exact_address_hidden = as.factor(is_exact_address_hidden),
+    neighborhood_id = as.factor(neighborhood_id),
+    house_type_id = as.factor(house_type_id),
+    is_renewal_needed = as.factor(is_renewal_needed),
+    energy_certificate = as.factor(energy_certificate),
+    gmm_cluster = as.factor(gmm_cluster),  # GMM cluster as factor
+    price_category = as.factor(price_category)  # Price category as factor
+  ) %>%
+  select(-buy_price, -rent_price, -id, -buy_price_log)  # Exclude buy_price_log
+
+# Dataset for Buy Prediction
+data_cleaned_analysis_buy <- data_cleaned %>%
+  mutate(
+    is_exact_address_hidden = as.factor(is_exact_address_hidden),
+    neighborhood_id = as.factor(neighborhood_id),
+    house_type_id = as.factor(house_type_id),
+    is_renewal_needed = as.factor(is_renewal_needed),
+    energy_certificate = as.factor(energy_certificate),
+    gmm_cluster = as.factor(gmm_cluster),  # GMM cluster as factor
+    price_category = as.factor(price_category)  # Price category as factor
+  ) %>%
+  select(-buy_price, -rent_price, -id, -rent_price_log)  # Exclude rent_price_log
+
+# 2. Splitting the data into training and test datasets
+
+set.seed(123)  # Set seed for reproducibility
+
+# Split data for Rent Prediction
+training_data_rent <- data_cleaned_analysis_rent %>%
+  sample_frac(0.9)
+test_data_rent <- anti_join(data_cleaned_analysis_rent, training_data_rent)
+
+# Split data for Buy Prediction
+training_data_buy <- data_cleaned_analysis_buy %>%
+  sample_frac(0.9)
+test_data_buy <- anti_join(data_cleaned_analysis_buy, training_data_buy)
+
+# 3. Lasso Model
+# Adjusted for rent and buy separately
+
+evaluate_lasso <- function(training_data, test_data, target_var, include_gmm = FALSE) {
+  predictors <- if (include_gmm) "." else colnames(training_data)[!colnames(training_data) %in% c("gmm_cluster", target_var)]
+
+  x_train <- model.matrix(reformulate(predictors, target_var), data = training_data)[, -1]  # Remove intercept
+  y_train <- training_data[[target_var]]
+  x_test <- model.matrix(reformulate(predictors, target_var), data = test_data)[, -1]
+  y_test <- test_data[[target_var]]
+
+  cv_lasso <- cv.glmnet(x_train, y_train, alpha = 1)
+  best_lambda <- cv_lasso$lambda.min
+
+  lasso_model <- glmnet(x_train, y_train, alpha = 1, lambda = best_lambda)
+
+  predictions <- predict(lasso_model, s = best_lambda, newx = x_test)
+  rmse <- sqrt(mean((predictions - y_test)^2))
+
+  return(list(rmse = rmse, model = lasso_model))
+}
+
+# Rent Prediction - Lasso
+lasso_rent_results <- evaluate_lasso(training_data_rent, test_data_rent, "rent_price_log", include_gmm = TRUE)
+rmse_rent_lasso <- lasso_rent_results$rmse
+lasso_rent_model <- lasso_rent_results$model
+
+# Buy Prediction - Lasso
+lasso_buy_results <- evaluate_lasso(training_data_buy, test_data_buy, "buy_price_log", include_gmm = FALSE)
+rmse_buy_lasso <- lasso_buy_results$rmse
+lasso_buy_model <- lasso_buy_results$model
+
+# 4. Linear Regression Model
+# Adjusted for rent and buy separately
+
+evaluate_lm <- function(training_data, test_data, target_var, include_gmm = FALSE) {
+  predictors <- if (include_gmm) "." else colnames(training_data)[!colnames(training_data) %in% c("gmm_cluster", target_var)]
+
+  lm_model <- lm(reformulate(predictors, target_var), data = training_data)
+  predictions <- predict(lm_model, newdata = test_data)
+  rmse <- sqrt(mean((predictions - test_data[[target_var]])^2))
+  r_squared <- summary(lm_model)$r.squared
+
+  return(list(rmse = rmse, r_squared = r_squared, model = lm_model))
+}
+
+# Rent Prediction - Linear Regression
+lm_rent_results <- evaluate_lm(training_data_rent, test_data_rent, "rent_price_log", include_gmm = TRUE)
+rmse_lm_rent <- lm_rent_results$rmse
+lm_rent_model <- lm_rent_results$model
+
+# Buy Prediction - Linear Regression
+lm_buy_results <- evaluate_lm(training_data_buy, test_data_buy, "buy_price_log", include_gmm = FALSE)
+rmse_lm_buy <- lm_buy_results$rmse
+lm_buy_model <- lm_buy_results$model
+
+# 5. Random Forest Model
+# Adjusted for rent and buy separately
+
+evaluate_rf <- function(training_data, test_data, target_var, include_gmm = FALSE) {
+  predictors <- if (include_gmm) "." else colnames(training_data)[!colnames(training_data) %in% c("gmm_cluster", target_var)]
+
+  rf_model <- randomForest(reformulate(predictors, target_var), data = training_data, importance = TRUE, ntree = 500)
+  predictions <- predict(rf_model, newdata = test_data)
+  rmse <- sqrt(mean((predictions - test_data[[target_var]])^2))
+  r_squared <- 1 - sum((test_data[[target_var]] - predictions)^2) / sum((test_data[[target_var]] - mean(test_data[[target_var]]))^2)
+
+  return(list(rmse = rmse, r_squared = r_squared, model = rf_model))
+}
+
+# Rent Prediction - Random Forest
+rf_rent_results <- evaluate_rf(training_data_rent, test_data_rent, "rent_price_log", include_gmm = TRUE)
+rmse_rf_rent <- rf_rent_results$rmse
+rf_rent_model <- rf_rent_results$model
+
+# Buy Prediction - Random Forest
+rf_buy_results <- evaluate_rf(training_data_buy, test_data_buy, "buy_price_log", include_gmm = FALSE)
+rmse_rf_buy <- rf_buy_results$rmse
+rf_buy_model <- rf_buy_results$model
+
+# 6. Compare Model Performance
+model_comparison <- data.frame(
+  Model = c("Lasso - Buy Price Log", "Linear Regression - Buy Price Log", "Random Forest - Buy Price Log",
+            "Lasso - Rent Price Log", "Linear Regression - Rent Price Log", "Random Forest - Rent Price Log"),
+  RMSE = c(rmse_buy_lasso, rmse_lm_buy, rmse_rf_buy,
+           rmse_rent_lasso, rmse_lm_rent, rmse_rf_rent),
+  R_Squared = c(NA, lm_buy_results$r_squared, rf_buy_results$r_squared,
+                NA, lm_rent_results$r_squared, rf_rent_results$r_squared)
+)
+
+# Split data for buy and rent price models
+model_comparison_buy <- model_comparison %>%
+  filter(grepl("Buy Price Log", Model))
+
+model_comparison_rent <- model_comparison %>%
+  filter(grepl("Rent Price Log", Model))
+
+# 7. Visualize Model Performance
+
+# Define custom colors
+custom_colors <- c("Rent Price Log" = rent_color, "Buy Price Log" = buy_color)
+```
+
+## Insights from Model Comparison
+
+The Random Forest model consistently demonstrated superior performance across both buy and rent price predictions. Its high R² values (above 0.9) indicate excellent explanatory power, while the low RMSE values suggest strong predictive accuracy. Linear Regression and Lasso Regression were less effective, with comparable RMSEs and lower R² values.
+
+The inclusion of GMM clustering for rent price prediction was particularly beneficial, as it helped the models capture variations in price categories. This feature, combined with the Random Forest's ensemble approach, resulted in the best overall performance.
+
+### Visual Representation of Results
+
+The performance of the models is visually summarized in bar plots, comparing RMSE values for both `buy_price_log` and `rent_price_log`. The plots clearly show the superiority of Random Forest in both scenarios. Notably, the RMSE for rent price predictions is significantly lower, underscoring the benefit of additional features like GMM clustering.
+
+::: panel-tabset
+#### Buying Prices
+
+```{r}
+# 7.1 Visualize Model Performance for Buy Prices with plotly
+plot_ly(
+  data = model_comparison_buy,
+  x = ~RMSE,
+  y = ~Model,
+  type = 'bar',
+  orientation = 'h',
+  marker = list(color = custom_colors["Buy Price Log"])
+) %>%
+  layout(
+    title = "Model RMSE Comparison - Buy Prices",
+    xaxis = list(title = "RMSE", range = c(0, 0.25)), # Set y-axis limits up to RMSE = 0.25
+    yaxis = list(title = "Model"),
+    barmode = 'stack'
+  )
+```
+
+#### Rental Prices
+
+```{r}
+# 7.2 Visualize Model Performance for Rent Prices with plotly
+plot_ly(
+  data = model_comparison_rent,
+  x = ~RMSE,
+  y = ~Model,
+  type = 'bar',
+  orientation = 'h',
+  marker = list(color = custom_colors["Rent Price Log"])
+) %>%
+  layout(
+    title = "Model RMSE Comparison - Rent Prices",
+    xaxis = list(title = "RMSE", range = c(0, 0.25)), # Set y-axis limits up to RMSE = 0.25
+    yaxis = list(title = "Model"),
+    barmode = 'stack'
+  )
+```
+:::
+
+## Coefficient and Feature Importance Analysis
+
+### Lasso Regression
+
+::: panel-tabset
+#### Buy Price Log
+
+**Positive Influence**:
+
+-   The neighborhood of Salamanca exhibits the strongest positive impact on 
+buy prices (0.2842), followed by Chamartín (0.2094) and Chamberí (0.2439).
+-   Among property features, the presence of a lift (0.2196), a pool (0.1255), 
+and parking (0.1012) significantly elevate buy prices.
+
+
+**Negative Influence**:
+
+-   The neighborhood of Villaverde shows the most substantial negative 
+impact on buy prices (-0.7046), followed by Villa de Vallecas (-0.5698) 
+and Usera (-0.5588).
+-   The category "Inexpensive" within price clustering (-0.2212) and 
+properties in need of renewal (-0.0569) also negatively influence buy prices.
+
+
+#### Rent Price Log
+
+**Positive Influence**:
+
+-   Chamberí (0.9074) is the strongest positively correlated neighborhood 
+for rent prices, with significant contributions also from Centro (0.1402) 
+and Salamanca (0.1258).
+-   Property features like the presence of a lift (0.1919), a pool (0.0917), 
+and room count (0.0456) positively influence rent prices.
+
+
+**Negative Influence**:
+
+-   Villaverde (-0.4689) and Puente de Vallecas (-0.4235) are the neighborhoods 
+with the most negative effect on rent prices.
+-   Properties in the neighborhood of Usera (-0.3497) and with hidden exact 
+addresses (-0.0178) also detract slightly from rental value.
+:::
+
+::: panel-tabset
+#### Coefficients Buy Price Log
+
+```{r}
+#| warning: false
+#| message: false
+# 8.Coefficients
+# 8.1 Lasso Coefficients
+# Buy Price Log
+lasso_buy_coefficients <- coef(lasso_buy_results$model)
+print("Lasso Model Coefficients - Buy Price Log:")
+print(as.matrix(lasso_buy_coefficients))
+```
+
+#### Coefficients Rent Price Log
+
+```{r}
+#| warning: false
+#| message: false
+# Rent Price Log
+lasso_rent_coefficients <- coef(lasso_rent_results$model)
+print("Lasso Model Coefficients - Rent Price Log:")
+print(as.matrix(lasso_rent_coefficients))
+```
+:::
+
+### Linear Regression
+
+::: panel-tabset
+#### Buy Price Log
+
+**Positive Impact**:
+
+-   Similar to Lasso, Salamanca (0.2778) has the strongest positive coefficient, 
+followed by Chamberí (0.2372) and Centro (0.2375).
+-   Building features like lift presence (0.2191) and parking availability
+(0.1020) also drive buy prices upward.
+
+**Negative Impact**:
+
+-   Villaverde (-0.7157) shows the largest negative effect, with Villa de 
+Vallecas (-0.5816) and Usera (-0.5694) close behind.
+-   Properties categorized as "Inexpensive" (-0.2197) and those in need of 
+renewal (-0.0581) also show depreciation in value.
+
+#### Rent Price Log
+
+**Positive Impact**:
+
+-   Chamberí (0.0720), Salamanca (0.1083), and Centro (0.1209) lead in 
+positively influencing rent prices.
+-   The presence of a lift (0.1894), a pool (0.0948), and higher room count 
+(0.0469) are other significant positive contributors.
+
+**Negative Impact**:
+
+-   Villaverde (-0.4966), Puente de Vallecas (-0.4493), and Usera (-0.3762) 
+continue to show a strong negative correlation.
+-   Other neighborhoods like Vicálvaro (-0.3698) and Villa de Vallecas (-0.4212) 
+exhibit a slightly less pronounced negative influence.
+
+:::
+
+::: panel-tabset
+#### Coefficients Buy Price Log
+
+```{r}
+#| warning: false
+#| message: false
+# 8.2 Linear Regression Coefficients
+# Buy Price Log
+lm_buy_coefficients <- coef(lm_buy_results$model)
+print("Linear Regression Coefficients - Buy Price Log:")
+print(lm_buy_coefficients)
+```
+
+#### Coefficients Rent Price Log
+
+```{r}
+#| warning: false
+#| message: false
+# Rent Price Log
+lm_rent_coefficients <- coef(lm_rent_results$model)
+print("Linear Regression Coefficients - Rent Price Log:")
+print(lm_rent_coefficients)
+```
+:::
+
+### Random Forest Feature Importance
+
+::: panel-tabset
+#### Buy Price Log
+
+**Key Influencers**:
+
+-   Neighborhood is the most influential variable, consistent with the Lasso 
+and Linear Regression results.
+-   Square meters built, lift presence, and parking are among the other 
+significant determinants of buy price.
+
+#### Rent Price Log
+
+**Key Influencers**:
+
+-   As with buy prices, neighborhood quality and key features like the 
+presence of a lift or a pool are highly influential for rent prices.
+-   The GMM clustering feature captures important property segmentation 
+effects, adding a unique perspective not visible in coefficient-based models.
+:::
+
+::: panel-tabset
+#### Coefficients Buy Price Log
+
+```{r}
+#| warning: false
+#| message: false
+# 8.3 Random Forest Feature Importance
+# Buy Price Log
+rf_buy_importance <- importance(rf_buy_results$model)
+print("Random Forest Feature Importance - Buy Price Log:")
+print(rf_buy_importance)
+```
+
+#### Coefficients Rent Price Log
+
+```{r}
+#| warning: false
+#| message: false
+# Rent Price Log
+rf_rent_importance <- importance(rf_rent_results$model)
+print("Random Forest Feature Importance - Rent Price Log:")
+print(rf_rent_importance)
+```
+:::
+
+### Comparative Insights into Coefficients and Feature Importance
+
+#### Consistent Patterns
+
+-   Across all models, neighborhoods like Salamanca, Chamberí, and Centro positively influence both buy and rent prices, though their relative impacts differ. Conversely, Villaverde consistently exhibits the most significant negative influence in all cases.
+-   Features such as lift presence and parking availability emerge as significant drivers for both price types, underscoring the importance of these amenities.
+
+#### Divergent Patterns
+
+-   Certain neighborhoods, while positive in both models, exhibit higher impacts on one price type. For instance, Chamberí strongly influences rent prices, whereas Salamanca leads for buy prices.
+-   Negative influences from specific neighborhoods show greater magnitude for buy prices than rent prices, with differences in the specific neighborhoods emphasized in each model.
+
+#### Interpretation Random Forest
+
+The Random Forest analysis supports and extends the coefficient findings by emphasizing the interaction effects of neighborhood and property features. These results highlight the dominant role of location and critical property characteristics like size, lift presence, and parking in predicting both buy and rent prices.
