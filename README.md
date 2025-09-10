@@ -71,16 +71,18 @@ Required R packages:
 ```r
 install.packages(c("tidyverse","readxl","ggplot2","rpart","rpart.plot","sf","caret"))
 ```
+
+---
+
+## 📈 Sample Visualization
+![Price by district](assets/price_by_district.png)
+
 ---
 
 ## 📫 Contact
 Author: **Stefano Sima**  
 [LinkedIn](https://www.linkedin.com/in/stesima) · stefano.sima@outlook.it
 
----
-
-## 📈 Sample Visualization
-![Price by district](assets/price_by_district.png)
 
 
 
