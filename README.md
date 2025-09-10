@@ -80,8 +80,10 @@ install.packages(c("tidyverse","readxl","ggplot2","rpart","rpart.plot","sf","car
 ---
 
 ## 📫 Contact
-Author: **Stefano Sima**  
-[LinkedIn](https://www.linkedin.com/in/stesima) · stefano.sima@outlook.it
+**Author**: Stefano Sima  
+
+- 📧 Email: [stefano.sima@outlook.it](mailto:stefano.sima@outlook.it)  
+- 💼 LinkedIn: [linkedin.com/in/stesima](https://www.linkedin.com/in/stesima)  
 
 
 
